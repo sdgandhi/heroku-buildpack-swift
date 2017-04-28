@@ -4,57 +4,39 @@
 set -e
 set -o pipefail
 
+BIN_DIR=$(cd $(dirname $0); pwd)
+ROOT_DIR=$(dirname $BIN_DIR)
+
 BUILD_DIR=$1
 CACHE_DIR=$2
+ENV_DIR=$3
 
-DEFAULT_SWIFT_VERSION="swift-2.2-SNAPSHOT-2015-12-22-a"
+DEFAULT_SWIFT_VERSION="3.0.1"
 CLANG_VERSION=3.7.0
+SWIFT_BUILD_CONFIGURATION="release"
+SWIFT_BUILD_FLAGS=""
 
-if [ -f $BUILD_DIR/.swift-version ]; then
-  SWIFT_VERSION=$(cat $BUILD_DIR/.swift-version)
-else
-  SWIFT_VERSION=$DEFAULT_SWIFT_VERSION
+if [ -f "$ENV_DIR/SWIFT_BUILD_CONFIGURATION" ]; then
+  SWIFT_BUILD_CONFIGURATION=`cat "$ENV_DIR/SWIFT_BUILD_CONFIGURATION"`
+fi
+if [ -f "$ENV_DIR/SWIFT_BUILD_FLAGS" ]; then
+  SWIFT_BUILD_FLAGS=`cat "$ENV_DIR/SWIFT_BUILD_FLAGS"`
 fi
 
-mkdir -p $CACHE_DIR
+mkdir -p "$CACHE_DIR"
 
-SWIFT_DIR=$BUILD_DIR/.swift
-mkdir -p $SWIFT_DIR
-
-if [[ ! -d "$SWIFT_DIR/$SWIFT_VERSION" ]]; then
-  cd $SWIFT_DIR
-  echo "-----> Installing $SWIFT_VERSION"
-  mkdir -p $SWIFT_VERSION
-  curl https://swift.org/builds/ubuntu1404/$SWIFT_VERSION/$SWIFT_VERSION-ubuntu14.04.tar.gz -s | tar xz -C $SWIFT_VERSION &> /dev/null
-fi
-
-if [[ ! -d "$CACHE_DIR/clang-$CLANG_VERSION" ]]; then
-  cd $CACHE_DIR
-  echo "-----> Installing clang-$CLANG_VERSION"
-  mkdir -p "clang-$CLANG_VERSION"
-  curl http://llvm.org/releases/$CLANG_VERSION/clang+llvm-$CLANG_VERSION-x86_64-linux-gnu-ubuntu-14.04.tar.xz -s | xz -d -c | tar x -C clang-$CLANG_VERSION &> /dev/null
-fi
-
-export PATH="$SWIFT_DIR/$SWIFT_VERSION/$SWIFT_VERSION-ubuntu14.04/usr/bin:$CACHE_DIR/clang-$CLANG_VERSION/clang+llvm-$CLANG_VERSION-x86_64-linux-gnu-ubuntu-14.04/bin:$PATH"
-
-cd $BUILD_DIR
-echo "-----> Building Package"
-swift build --configuration release
-
-# These should be statically linked, seems a swift bug
-echo "-----> Copying dynamic libraries"
-mkdir -p $BUILD_DIR/.swift-lib
-cp $SWIFT_DIR/$SWIFT_VERSION/$SWIFT_VERSION-ubuntu14.04/usr/lib/swift/linux/*.so $BUILD_DIR/.swift-lib
-
-echo "-----> Copying binaries to 'bin'"
-mkdir -p $BUILD_DIR/.swift-bin
-find $BUILD_DIR/.build/release -type f -perm /a+x -exec cp {} $BUILD_DIR/.swift-bin \;
+source "$BIN_DIR/utils"
+source "$BIN_DIR/steps/swiftenv"
+source "$BIN_DIR/steps/swift"
+source "$BIN_DIR/steps/clang"
+source "$BIN_DIR/steps/hooks/pre_compile"
+source "$BIN_DIR/steps/swift-build"
+source "$BIN_DIR/steps/swift-install"
 
 # Setup application environment
-PROFILE_PATH="$BUILD_DIR/.profile.d/swift.sh"
 mkdir -p $BUILD_DIR/.profile.d
-set-env() {
-  echo "export $1=$2" >> $PROFILE_PATH
-}
+
 set-env PATH '$HOME/.swift-bin:$PATH'
 set-env LD_LIBRARY_PATH '$HOME/.swift-lib'
+
+source "$BIN_DIR/steps/hooks/post_compile"

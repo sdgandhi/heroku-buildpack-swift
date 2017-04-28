@@ -1,6 +1,6 @@
 # Heroku buildpack: swift
 
-This is a Heroku buildpack for Swift app, powered by SPM (Swift Package Manager).
+This is a Heroku buildpack for Swift apps that are powered by the Swift Package Manager.
 
 Check out the [Curassow-example-helloworld](https://github.com/kylef/Curassow-example-helloworld)
 for a fully working example that can be deployed to Heroku.
@@ -17,7 +17,7 @@ $ heroku create --buildpack https://github.com/kylef/heroku-buildpack-swift.git
 
 $ git push heroku master
 remote: -----> Swift app detected
-remote: -----> Installing swift-2.2-SNAPSHOT-2015-12-01-b
+remote: -----> Installing Swift 3.0.1
 remote: -----> Installing clang-3.7.0
 remote: -----> Building Package
 remote: -----> Copying binaries to 'bin'
@@ -35,7 +35,8 @@ the root.
 ### Procfile
 
 Using the Procfile, you can set the process to run for your web server. Any
-binaries built from your Swift source using SPM will be placed in your $PATH.
+binaries built from your Swift source using swift package manager will
+be placed in your $PATH.
 
 ```swift
 web: HelloWorld --workers 3 --bind 0.0.0.0:$PORT
@@ -48,8 +49,21 @@ in your repository:
 
 ```shell
 $ cat .swift-version
-swift-2.2-SNAPSHOT-2015-12-01-b
+3.0.1
 ```
+
+The `.swift-version` file is completely compatible with
+[swiftenv](http://github.com/kylef/swiftenv).
 
 **NOTE**: *Since there are frequent Swift language changes, it's advised that
 you pin to your Swift version.*
+
+### Hooks
+
+You can place custom scripts to be ran before and after compiling your Swift
+source code inside the following files in your repository:
+
+- `bin/pre_compile`
+- `bin/post_compile`
+
+This is useful if you would need to install any other dependencies.
